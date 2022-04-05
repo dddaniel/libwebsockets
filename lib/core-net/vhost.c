@@ -1158,7 +1158,7 @@ __lws_create_event_pipes(struct lws_context *context)
 			 * etc.
 			 */
 
-			wsi->desc.u.sockfd = context->pt[n].dummy_pipe_fds[0];
+			lws_wsi_desc(wsi)->u.sockfd = context->pt[n].dummy_pipe_fds[0];
 			// lwsl_debug("event pipe fd %d\n", wsi->desc.u.sockfd);
 
 			if (lws_wsi_inject_to_loop(pt, wsi))

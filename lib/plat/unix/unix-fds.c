@@ -41,7 +41,7 @@ wsi_from_fd(const struct lws_context *context, int fd)
 	done = &p[context->max_fds];
 
 	while (p != done) {
-		if (*p && (*p)->desc.u.sockfd == fd)
+		if (*p && lws_wsi_desc(*p)->u.sockfd == fd)
 			return *p;
 		p++;
 	}
@@ -106,7 +106,7 @@ sanity_assert_no_sockfd_traces(const struct lws_context *context,
 
 	/* confirm the sfd not already in use */
 
-	while (p != done && (!*p || (*p)->desc.u.sockfd != sfd))
+	while (p != done && (!*p || lws_wsi_desc(*p)->u.sockfd != sfd))
 		p++;
 
 	if (p == done)
@@ -124,15 +124,16 @@ int
 insert_wsi(const struct lws_context *context, struct lws *wsi)
 {
 	struct lws **p, **done;
+	lws_desc_t *desc = lws_wsi_desc(wsi);
 
 	if (sanity_assert_no_wsi_traces(context, wsi))
 		return 0;
 
 	if (!context->max_fds_unrelated_to_ulimit) {
-		assert(context->lws_lookup[wsi->desc.u.sockfd -
+		assert(context->lws_lookup[desc->u.sockfd -
 		                           lws_plat_socket_offset()] == 0);
 
-		context->lws_lookup[wsi->desc.u.sockfd - \
+		context->lws_lookup[desc->u.sockfd - \
 				  lws_plat_socket_offset()] = wsi;
 
 		return 0;
@@ -145,7 +146,7 @@ insert_wsi(const struct lws_context *context, struct lws *wsi)
 
 	/* confirm fd isn't already in use by a wsi */
 
-	if (sanity_assert_no_sockfd_traces(context, wsi->desc.u.sockfd))
+	if (sanity_assert_no_sockfd_traces(context, desc->u.sockfd))
 		return 0;
 
 	p = context->lws_lookup;
@@ -189,7 +190,7 @@ delete_from_fd(const struct lws_context *context, int fd)
 
 	/* find the match */
 
-	while (p != done && (!*p || (*p)->desc.u.sockfd != fd))
+	while (p != done && (!*p || lws_wsi_desc(*p)->u.sockfd != fd))
 		p++;
 
 	if (p != done)
@@ -197,7 +198,7 @@ delete_from_fd(const struct lws_context *context, int fd)
 
 #if defined(_DEBUG)
 	p = context->lws_lookup;
-	while (p != done && (!*p || (*p)->desc.u.sockfd != fd))
+	while (p != done && (!*p || lws_wsi_desc(*p)->u.sockfd != fd))
 		p++;
 
 	if (p != done) {

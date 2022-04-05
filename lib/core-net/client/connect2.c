@@ -59,7 +59,7 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 		hints.ai_family = PF_UNSPEC;
 	}
 
-	wsi->conmon_datum = lws_now_usecs();
+	lws_wsi_cao(wsi)->conmon_datum = lws_now_usecs();
 
 	wsi->dns_reachability = 0;
 	if (lws_fi(&wsi->fic, "dnsfail"))
@@ -67,8 +67,8 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 	else
 		n = getaddrinfo(ads, NULL, &hints, result);
 
-	wsi->conmon.ciu_dns = (lws_conmon_interval_us_t)
-					(lws_now_usecs() - wsi->conmon_datum);
+	lws_wsi_conmon(wsi)->ciu_dns = (lws_conmon_interval_us_t)
+					(lws_now_usecs() - lws_wsi_cao(wsi)->conmon_datum);
 
 	/*
 	 * Which EAI_* are available and the meanings are highly platform-
@@ -96,7 +96,7 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, buckname);
 #endif
 
-		wsi->conmon.dns_disposition = LWSCONMON_DNS_SERVER_UNREACHABLE;
+		lws_wsi_conmon(wsi)->dns_disposition = LWSCONMON_DNS_SERVER_UNREACHABLE;
 
 #if 0
 		lwsl_wsi_debug(wsi, "asking to recheck CPD in 1s");
@@ -113,7 +113,7 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 	}
 #endif
 
-	wsi->conmon.dns_disposition = n < 0 ? LWSCONMON_DNS_NO_RESULT :
+	lws_wsi_conmon(wsi)->dns_disposition = n < 0 ? LWSCONMON_DNS_NO_RESULT :
 					      LWSCONMON_DNS_OK;
 
 	lws_metrics_caliper_report(cal, n >= 0 ? METRES_GO : METRES_NOGO);
@@ -330,7 +330,7 @@ solo:
 
 #if !defined(LWS_WITH_SYS_ASYNC_DNS)
 	n = 0;
-	if (!wsi->dns_sorted_list.count) {
+	if (!lws_wsi_cao(wsi)->dns_sorted_list.count) {
 		/*
 		 * blocking dns resolution
 		 */

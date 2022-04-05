@@ -259,6 +259,15 @@ LWS_VISIBLE LWS_EXTERN void *
 _lws_dll2_search_sz_pl(lws_dll2_owner_t *own, const char *name, size_t namelen,
 		      size_t dll2_ofs, size_t ptr_ofs);
 
+LWS_VISIBLE LWS_EXTERN void
+lws_dll2_migrate_head(struct lws_dll2 *d, struct lws_dll2_owner *owner);
+
+LWS_VISIBLE LWS_EXTERN void
+lws_dll2_migrate_tail(struct lws_dll2 *d, struct lws_dll2_owner *owner);
+
+LWS_VISIBLE LWS_EXTERN void
+lws_dll2_migrate(struct lws_dll2_owner *pre, struct lws_dll2_owner *post);
+
 /*
  * Searches objects in an owner list linearly and returns one with a given
  * member C-string matching a supplied length-provided string if it exists, else

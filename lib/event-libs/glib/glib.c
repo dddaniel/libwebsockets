@@ -130,7 +130,7 @@ lws_glib_dispatch(GSource *src, GSourceFunc x, gpointer userData)
 		eventfd.revents |= LWS_POLLHUP;
 
 	eventfd.events = eventfd.revents;
-	eventfd.fd = sub->wsi->desc.u.sockfd;
+	eventfd.fd = lws_wsi_desc(sub->wsi)->u.sockfd;
 
 	lwsl_wsi_debug(sub->wsi, "fd %d, events %d",
 				 eventfd.fd, eventfd.revents);
@@ -277,9 +277,9 @@ elops_accept_glib(struct lws *wsi)
 	wsi_to_subclass(wsi)->wsi = wsi;
 
 	if (wsi->role_ops->file_handle)
-		fd = wsi->desc.u.filefd;
+		fd = lws_wsi_desc(wsi)->u.filefd;
 	else
-		fd = wsi->desc.u.sockfd;
+		fd = lws_wsi_desc(wsi)->u.sockfd;
 
 	wsi_to_subclass(wsi)->tag = g_source_add_unix_fd(wsi_to_gsource(wsi),
 						fd, (GIOCondition)LWS_POLLIN);
@@ -377,7 +377,7 @@ elops_io_glib(struct lws *wsi, unsigned int flags)
 
 	wsipr->w_read.actual_events = (uint8_t)cond;
 
-	lwsl_wsi_debug(wsi, "fd %d, 0x%x/0x%x", wsi->desc.u.sockfd,
+	lwsl_wsi_debug(wsi, "fd %d, 0x%x/0x%x", lws_wsi_desc(wsi)->u.sockfd,
 						flags, (int)cond);
 
 	g_source_modify_unix_fd(wsi_to_gsource(wsi), wsi_to_subclass(wsi)->tag,

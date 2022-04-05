@@ -107,7 +107,7 @@ lws_http_client_socket_service(struct lws *wsi, struct lws_pollfd *pollfd)
 			goto bail3;
 		}
 
-		n = (int)recv(wsi->desc.u.sockfd, sb, context->pt_serv_buf_size, 0);
+		n = (int)recv(lws_wsi_desc(wsi)->u.sockfd, sb, context->pt_serv_buf_size, 0);
 		if (n < 0) {
 			if (LWS_ERRNO == LWS_EAGAIN) {
 				lwsl_debug("Proxy read EAGAIN... retrying\n");
@@ -278,7 +278,7 @@ hs2:
 		lwsl_info("%s: HANDSHAKE2: %s: sending headers "
 			  "(wsistate 0x%lx), w sock %d\n",
 			  __func__, lws_wsi_tag(wsi),
-			  (unsigned long)wsi->wsistate, wsi->desc.u.sockfd);
+			  (unsigned long)wsi->wsistate, lws_wsi_desc(wsi)->u.sockfd);
 
 		n = lws_ssl_capable_write(wsi, (unsigned char *)sb, lws_ptr_diff_size_t(p, sb));
 		switch (n) {
@@ -508,7 +508,7 @@ lws_http_transaction_completed_client(struct lws *wsi)
 
 	// if (wsi->http.ah && wsi->http.ah->http_response)
 	/* we're only judging if any (200, or 500 etc) http txn completed */
-	lws_metrics_caliper_report(wsi->cal_conn, METRES_GO);
+	lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_GO);
 
 	if (user_callback_handle_rxflow(wsi->a.protocol->callback, wsi,
 					LWS_CALLBACK_COMPLETED_CLIENT_HTTP,
@@ -526,6 +526,7 @@ lws_http_transaction_completed_client(struct lws *wsi)
 	 */
 	lws_pt_lock(pt, __func__);
 	n = _lws_generic_transaction_completed_active_conn(&wsi, 1);
+	lwsl_err("%s: %d\n", __func__, n);
 	lws_pt_unlock(pt);
 
 	if (wsi->http.ah) {
@@ -601,8 +602,10 @@ lws_client_interpret_server_handshake(struct lws *wsi)
 
 	// lws_free_set_NULL(wsi->stash);
 
-	wsi->conmon.ciu_txn_resp = (lws_conmon_interval_us_t)
-					(lws_now_usecs() - wsi->conmon_datum);
+	lwsl_wsi_notice(wsi, "%d %d", wsi->cao_owner.count, wsi->parent ? wsi->parent->cao_owner.count : (uint32_t)-1);
+
+	lws_wsi_conmon(wsi)->ciu_txn_resp = (lws_conmon_interval_us_t)
+			(lws_now_usecs() - lws_wsi_cao(wsi)->conmon_datum);
 
 	ah = wsi->http.ah;
 	if (!wsi->do_ws) {
@@ -704,9 +707,9 @@ lws_client_interpret_server_handshake(struct lws *wsi)
 			goto bail3;
 		}
 
-		if (wsi->conmon.pcol == LWSCONMON_PCOL_NONE) {
-			wsi->conmon.pcol = LWSCONMON_PCOL_HTTP;
-			wsi->conmon.protocol_specific.http.response = n;
+		if (lws_wsi_conmon(wsi)->pcol == LWSCONMON_PCOL_NONE) {
+			lws_wsi_conmon(wsi)->pcol = LWSCONMON_PCOL_HTTP;
+			lws_wsi_conmon(wsi)->protocol_specific.http.response = n;
 		}
 
 #if defined(LWS_WITH_SECURE_STREAMS)
@@ -1283,8 +1286,8 @@ lws_generate_client_handshake(struct lws *wsi, char *pkt)
 	if (wsi->client_http_body_pending || lws_has_buffered_out(wsi))
 		lws_callback_on_writable(wsi);
 
-	lws_metrics_caliper_bind(wsi->cal_conn, wsi->a.context->mt_http_txn);
-	wsi->conmon_datum = lws_now_usecs();
+	lws_metrics_caliper_bind(lws_wsi_cao(wsi)->cal_conn, wsi->a.context->mt_http_txn);
+	lws_wsi_cao(wsi)->conmon_datum = lws_now_usecs();
 
 	// puts(pkt);
 

@@ -165,7 +165,7 @@ lws_server_socket_service_ssl(struct lws *wsi, lws_sockfd_type accept_fd, char f
 		lwsi_set_state(wsi, LRS_SSL_ACK_PENDING);
 
 		lws_pt_lock(pt, __func__);
-		if (__insert_wsi_socket_into_fds(context, wsi)) {
+		if (__insert_wsi_socket_into_fds(context, wsi, lws_wsi_desc(wsi))) {
 			lwsl_err("%s: failed to insert into fds\n", __func__);
 			goto fail;
 		}
@@ -191,7 +191,7 @@ lws_server_socket_service_ssl(struct lws *wsi, lws_sockfd_type accept_fd, char f
 			 * something to read...
 			 */
 
-			s = recv(wsi->desc.u.sockfd, (char *)pt->serv_buf,
+			s = recv(lws_wsi_desc(wsi)->u.sockfd, (char *)pt->serv_buf,
 				 context->pt_serv_buf_size, MSG_PEEK);
 			/*
 			 * We have LWS_SERVER_OPTION_ALLOW_NON_SSL_ON_SSL_PORT..
@@ -325,7 +325,7 @@ punt:
 		case LWS_SSL_CAPABLE_ERROR:
 			lws_tls_restrict_return_handshake(wsi);
 	                lwsl_info("%s: SSL_accept failed socket %u: %d\n",
-					__func__, wsi->desc.u.sockfd, n);
+					__func__, lws_wsi_desc(wsi)->u.sockfd, n);
 			wsi->socket_is_permanently_unusable = 1;
 			goto fail;
 

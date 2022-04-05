@@ -43,7 +43,7 @@ wsi_from_fd(const struct lws_context *context, lws_sockfd_type fd)
 int
 insert_wsi(struct lws_context *context, struct lws *wsi)
 {
-	int h = LWS_FD_HASH(wsi->desc.u.sockfd);
+	int h = LWS_FD_HASH(lws_wsi_desc(wsi)->u.sockfd);
 
 	if (context->fd_hashtable[h].length == (getdtablesize() - 1)) {
 		lwsl_err("hash table overflow\n");

@@ -148,7 +148,7 @@ elops_listen_init_ev(struct lws_dll2 *d, void *user)
 	vh_to_priv_ev(vh)->w_accept.context = context;
 
 	ev_io_init(&vh_to_priv_ev(vh)->w_accept.watcher,
-		   lws_accept_cb, wsi->desc.u.sockfd, EV_READ);
+		   lws_accept_cb, lws_wsi_desc(wsi)->u.sockfd, EV_READ);
 	ev_io_start(ptpr->io_loop, &vh_to_priv_ev(vh)->w_accept.watcher);
 
 	return 0;
@@ -289,9 +289,9 @@ elops_accept_ev(struct lws *wsi)
 	int fd;
 
 	if (wsi->role_ops->file_handle)
-		fd = wsi->desc.u.filefd;
+		fd = lws_wsi_desc(wsi)->u.filefd;
 	else
-		fd = wsi->desc.u.sockfd;
+		fd = lws_wsi_desc(wsi)->u.sockfd;
 
 	w->w_read.context = wsi->a.context;
 	w->w_write.context = wsi->a.context;
@@ -390,9 +390,9 @@ elops_init_vhost_listen_wsi_ev(struct lws *wsi)
 	w->w_write.context = wsi->a.context;
 
 	if (wsi->role_ops->file_handle)
-		fd = wsi->desc.u.filefd;
+		fd = lws_wsi_desc(wsi)->u.filefd;
 	else
-		fd = wsi->desc.u.sockfd;
+		fd = lws_wsi_desc(wsi)->u.sockfd;
 
 	ev_io_init(&w->w_read.watcher, lws_accept_cb, fd, EV_READ);
 	//ev_io_init(&w->w_write.watcher, lws_accept_cb, fd, EV_WRITE);

@@ -421,7 +421,7 @@ lws_spawn_piped(const struct lws_spawn_piped_info *i)
 			if (context->event_loop_ops->sock_accept(lsp->stdwsi[n]))
 				goto bail3;
 
-		if (__insert_wsi_socket_into_fds(context, lsp->stdwsi[n]))
+		if (__insert_wsi_socket_into_fds(context, lsp->stdwsi[n], &lsp->stdwsi[n].desc))
 			goto bail3;
 		if (i->opt_parent) {
 			lsp->stdwsi[n]->parent = i->opt_parent;

@@ -184,7 +184,7 @@ elops_listen_init_event(struct lws_dll2 *d, void *user)
 					&(wsi_to_priv_event(wsi)->w_read);
 
 	w_read->context = context;
-	w_read->watcher = event_new(ptpr->io_loop, wsi->desc.u.sockfd,
+	w_read->watcher = event_new(ptpr->io_loop, lws_wsi_desc(wsi)->u.sockfd,
 				(EV_READ | EV_PERSIST), lws_event_cb, w_read);
 	event_add(w_read->watcher, NULL);
 	w_read->set = 1;
@@ -273,9 +273,9 @@ elops_accept_event(struct lws *wsi)
 	ptpr = pt_to_priv_event(pt);
 
 	if (wsi->role_ops->file_handle)
-               fd = (evutil_socket_t)(ev_intptr_t) wsi->desc.u.filefd;
+               fd = (evutil_socket_t)(ev_intptr_t) lws_wsi_desc(wsi)->u.filefd;
 	else
-		fd = wsi->desc.u.sockfd;
+		fd = lws_wsi_desc(wsi)->u.sockfd;
 
 	wpr->w_read.watcher = event_new(ptpr->io_loop, fd,
 			(EV_READ | EV_PERSIST), lws_event_cb, &wpr->w_read);
@@ -425,9 +425,9 @@ elops_init_vhost_listen_wsi_event(struct lws *wsi)
 	ptpr = pt_to_priv_event(pt);
 
 	if (wsi->role_ops->file_handle)
-               fd = (evutil_socket_t) wsi->desc.u.filefd;
+               fd = (evutil_socket_t) lws_wsi_desc(wsi)->u.filefd;
 	else
-		fd = wsi->desc.u.sockfd;
+		fd = lws_wsi_desc(wsi)->u.sockfd;
 
 	w->w_read.watcher = event_new(ptpr->io_loop, fd, (EV_READ | EV_PERSIST),
 				      lws_event_cb, &w->w_read);

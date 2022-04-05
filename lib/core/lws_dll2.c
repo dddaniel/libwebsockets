@@ -293,6 +293,33 @@ lws_dll2_add_sorted(lws_dll2_t *d, lws_dll2_owner_t *own,
 	lws_dll2_add_tail(d, own);
 }
 
+void
+lws_dll2_migrate_head(struct lws_dll2 *d, struct lws_dll2_owner *owner)
+{
+	lws_dll2_remove(d);
+	lws_dll2_add_head(d, owner);
+}
+
+void
+lws_dll2_migrate_tail(struct lws_dll2 *d, struct lws_dll2_owner *owner)
+{
+	lws_dll2_remove(d);
+	lws_dll2_add_tail(d, owner);
+}
+
+void
+lws_dll2_migrate(struct lws_dll2_owner *pre, struct lws_dll2_owner *post)
+{
+	while (pre->head) {
+		lws_dll2_t *d = pre->head;
+
+		lwsl_err("%s: mig\n", __func__);
+
+		lws_dll2_remove(d);
+		lws_dll2_add_tail(d, post);
+	}
+}
+
 void *
 _lws_dll2_search_sz_pl(lws_dll2_owner_t *own, const char *name, size_t namelen,
 		       size_t dll2_ofs, size_t ptr_ofs)

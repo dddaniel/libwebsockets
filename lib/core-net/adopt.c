@@ -300,7 +300,7 @@ lws_adopt_ss_server_accept(struct lws *new_wsi)
 	h->policy = new_wsi->a.vhost->ss_handle->policy;
 
 	/* apply requested socket options */
-	if (lws_plat_set_socket_options_ip(new_wsi->desc.u.sockfd,
+	if (lws_plat_set_socket_options_ip(lws_wsi_desc(new_wsi)->u.sockfd,
 					   h->policy->priority,
 		      (LCCSCF_IP_LOW_LATENCY *
 		       !!(h->policy->flags & LWSSSPOLF_ATTR_LOW_LATENCY)) |
@@ -373,7 +373,10 @@ lws_adopt_descriptor_vhost2(struct lws *new_wsi, lws_adoption_type type,
 		}
 #endif
 
-	new_wsi->desc.u = fd;
+	if (type & LWS_ADOPT_SOCKET)
+		assert(lws_socket_is_valid(fd.sockfd));
+
+	lws_wsi_desc(new_wsi)->u = fd;
 
 	if (!LWS_SSL_ENABLED(new_wsi->a.vhost) ||
 	    !(type & LWS_ADOPT_SOCKET))
@@ -405,7 +408,7 @@ lws_adopt_descriptor_vhost2(struct lws *new_wsi, lws_adoption_type type,
 
 	if (!(type & LWS_ADOPT_ALLOW_SSL)) {
 		lws_pt_lock(pt, __func__);
-		if (__insert_wsi_socket_into_fds(new_wsi->a.context, new_wsi)) {
+		if (__insert_wsi_socket_into_fds(new_wsi->a.context, new_wsi, lws_wsi_desc(new_wsi))) {
 			lws_pt_unlock(pt);
 			lwsl_wsi_err(new_wsi, "fail inserting socket");
 			goto fail;
@@ -531,8 +534,8 @@ lws_adopt_descriptor_vhost_via_info(const lws_adopt_desc_t *info)
 		goto bail;
 	}
 
-	if (info->type & LWS_ADOPT_SOCKET &&
-	    getpeername(info->fd.sockfd, (struct sockaddr *)&new_wsi->sa46_peer,
+	if ((info->type & LWS_ADOPT_SOCKET) && new_wsi->cao_owner.count &&
+	    getpeername(info->fd.sockfd, (struct sockaddr *)&lws_wsi_conmon(new_wsi)->peer46,
 								    &slen) < 0)
 		lwsl_info("%s: getpeername failed\n", __func__);
 
@@ -579,7 +582,7 @@ adopt_socket_readbuf(struct lws *wsi, const char *readbuf, size_t len)
 	if (!readbuf || len == 0)
 		return wsi;
 
-	if (wsi->desc.pos_in_fds_table == LWS_NO_FDS_POS)
+	if (lws_wsi_desc(wsi)->pos_in_fds_table == LWS_NO_FDS_POS)
 		return wsi;
 
 	pt = &wsi->a.context->pt[(int)wsi->tsi];
@@ -611,7 +614,7 @@ adopt_socket_readbuf(struct lws *wsi, const char *readbuf, size_t len)
 		 * libuv won't come back and service us without a network
 		 * event, so we need to do the header service right here.
 		 */
-		pfd = &pt->fds[wsi->desc.pos_in_fds_table];
+		pfd = &pt->fds[lws_wsi_desc(wsi)->pos_in_fds_table];
 		pfd->revents |= LWS_POLLIN;
 		lwsl_err("%s: calling service\n", __func__);
 		if (lws_service_fd_tsi(wsi->a.context, pfd, wsi->tsi))
@@ -667,9 +670,9 @@ lws_create_adopt_udp2(struct lws *wsi, const char *ads,
 	if (m)
 		goto bail;
 
-	while (lws_dll2_get_head(&wsi->dns_sorted_list)) {
+	while (lws_dll2_get_head(&lws_wsi_cao(wsi)->dns_sorted_list)) {
 		lws_dns_sort_t *s = lws_container_of(
-				lws_dll2_get_head(&wsi->dns_sorted_list),
+				lws_dll2_get_head(&lws_wsi_cao(wsi)->dns_sorted_list),
 				lws_dns_sort_t, list);
 
 		/*
@@ -755,7 +758,7 @@ lws_create_adopt_udp2(struct lws *wsi, const char *ads,
 
 		if (wsi->udp)
 			wsi->udp->sa46 = s->dest;
-		wsi->sa46_peer = s->dest;
+		lws_wsi_conmon(wsi)->peer46 = s->dest;
 
 		/* we connected: complete the udp socket adoption flow */
 
@@ -890,6 +893,10 @@ lws_create_adopt_udp(struct lws_vhost *vhost, const char *ads, int port,
 		 * kind to ask for until we get the dns back).  But it is bound
 		 * to a vhost and can be cleaned up from that at vhost destroy.
 		 */
+
+		if (!lws_cao_create(wsi))
+			goto bail;
+
 		n = lws_async_dns_query(vhost->context, 0, ads,
 					LWS_ADNS_RECORD_A,
 					lws_create_adopt_udp2, wsi,

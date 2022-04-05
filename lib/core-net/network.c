@@ -208,7 +208,7 @@ const char *
 lws_get_peer_simple(struct lws *wsi, char *name, size_t namelen)
 {
 	wsi = lws_get_network_wsi(wsi);
-	return lws_get_peer_simple_fd(wsi->desc.u.sockfd, name, namelen);
+	return lws_get_peer_simple_fd(lws_wsi_desc(wsi)->u.sockfd, name, namelen);
 }
 #endif
 
@@ -296,7 +296,7 @@ lws_socket_bind(struct lws_vhost *vhost, struct lws *wsi,
 
 	/* if there's a wsi, we want to mark it with our source ads:port */
 	if (wsi)
-		psin = (struct sockaddr_storage *)&wsi->sa46_local;
+		psin = (struct sockaddr_storage *)&lws_wsi_cao(wsi)->sa46_local;
 
 	switch (af) {
 #if defined(LWS_WITH_UNIX_SOCK)

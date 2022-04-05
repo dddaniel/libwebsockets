@@ -267,8 +267,8 @@ __lws_wsi_server_new(struct lws_vhost *vh, struct lws *parent_wsi,
 	}
 
 #if defined(LWS_WITH_SERVER)
-	if (lwsi_role_server(parent_wsi)) {
-		lws_metrics_caliper_bind(wsi->cal_conn, wsi->a.context->mth_srv);
+	if (lwsi_role_server(parent_wsi) && _lws_wsi_cao(wsi)) {
+		lws_metrics_caliper_bind(lws_wsi_cao(wsi)->cal_conn, wsi->a.context->mth_srv);
 	}
 #endif
 
@@ -399,7 +399,7 @@ lws_h2_issue_preface(struct lws *wsi)
 	if (h2n->sent_preface)
 		return 1;
 
-	lwsl_debug("%s: %s: fd %d\n", __func__, lws_wsi_tag(wsi), (int)wsi->desc.u.sockfd);
+	lwsl_wsi_debug(wsi, "fd %d", (int)lws_wsi_desc(wsi)->u.sockfd);
 
 	if (lws_issue_raw(wsi, (uint8_t *)preface, strlen(preface)) !=
 		(int)strlen(preface))
@@ -1474,7 +1474,11 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 		    !(h2n->flags & LWS_H2_FLAG_SETTINGS_ACK)) {
 			struct lws_h2_protocol_send *pps;
 
-			/* migrate original client ask on to substream 1 */
+			/*
+			 * Migrate original client ask on to substream 1, ie,
+			 * create a new wsi to be nwsi, migrate CAO on to nwsi
+			 */
+
 #if defined(LWS_WITH_FILE_OPS)
 			wsi->http.fop_fd = NULL;
 #endif
@@ -1487,6 +1491,11 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 			lws_context_lock(wsi->a.context, "h2 mig");
 			lws_vhost_lock(wsi->a.vhost);
 
+			/*
+			 * Create the new SID 1 wsi as a child of the current
+			 * wsi (which will become the nwsi).
+			 */
+
 			h2n->swsi = __lws_wsi_server_new(wsi->a.vhost, wsi, 1);
 
 			lws_vhost_unlock(wsi->a.vhost);
@@ -1497,10 +1506,6 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 			h2n->sid = 1;
 
 			assert(lws_wsi_mux_from_id(wsi, 1) == h2n->swsi);
-
-		//	lws_role_transition(wsi, LWSIFR_CLIENT,
-		//			    LRS_H2_WAITING_TO_SEND_HEADERS,
-		//			    &role_ops_h2);
 
 			lws_role_transition(h2n->swsi, LWSIFR_CLIENT,
 					    LRS_H2_WAITING_TO_SEND_HEADERS,
@@ -1516,14 +1521,15 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 #if defined(LWS_WITH_CLIENT)
 			h2n->swsi->flags = wsi->flags;
 
-			/* sid1 needs to represent the connection experience
-			 * ... we take over responsibility for the DNS list
-			 * copy as well
+			/*
+			 * The nwsi owns the CAO(s).  But the nwsi is invisible
+			 * to the user apis, they only know about SID1.  Mark
+			 * SID1 as needing to report its parent CAO / CONMON
+			 * information on behalf of the nwsi.
 			 */
-			h2n->swsi->conmon = wsi->conmon;
-			h2n->swsi->conmon_datum = wsi->conmon_datum;
-			h2n->swsi->sa46_peer = wsi->sa46_peer;
-			wsi->conmon.dns_results_copy = NULL;
+
+			h2n->swsi->represent_nwsi = 1;
+
 #endif /* CLIENT */
 
 #if defined(LWS_WITH_SECURE_STREAMS)

@@ -164,6 +164,9 @@ lws_client_connect_via_info(const struct lws_client_connect_info *i)
 	if (wsi == NULL)
 		return NULL;
 
+	if (!lws_cao_create(wsi))
+		goto bail;
+
 	vh = i->vhost;
 	if (!vh) {
 #if defined(LWS_WITH_TLS_JIT_TRUST)
@@ -283,7 +286,7 @@ lws_client_connect_via_info(const struct lws_client_connect_info *i)
 
 	wsi->user_space = NULL;
 	wsi->pending_timeout = NO_PENDING_TIMEOUT;
-	wsi->desc.pos_in_fds_table = LWS_NO_FDS_POS;
+	lws_wsi_cao(wsi)->desc.pos_in_fds_table = LWS_NO_FDS_POS;
 	wsi->ocport = wsi->c_port = (uint16_t)(unsigned int)i->port;
 	wsi->sys_tls_client_cert = i->sys_tls_client_cert;
 

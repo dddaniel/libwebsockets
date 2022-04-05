@@ -298,21 +298,31 @@ int
 _lws_route_check_wsi(struct lws *wsi)
 {
 	struct lws_context_per_thread *pt = &wsi->a.context->pt[(int)wsi->tsi];
+	lws_conmon_t *cm = NULL;
+	lws_sockaddr46 *sa46_peer, *sa46_local;
 	char buf[72];
 
-	if (!wsi->sa46_peer.sa4.sin_family ||
+	if (!_lws_wsi_cao(wsi))
+		return 0; /* OK (eg, server peer) */
+
+	 cm = lws_wsi_conmon(wsi);
+
+	sa46_peer = &cm->peer46;
+	sa46_local = &lws_wsi_cao(wsi)->sa46_local;
+
+	if (!sa46_peer->sa4.sin_family ||
 #if defined(LWS_WITH_UNIX_SOCK)
 	     wsi->unix_skt ||
-	     wsi->sa46_peer.sa4.sin_family == AF_UNIX ||
+	     sa46_peer->sa4.sin_family == AF_UNIX ||
 #endif
-	    wsi->desc.u.sockfd == LWS_SOCK_INVALID)
+	     lws_wsi_desc(wsi)->u.sockfd == LWS_SOCK_INVALID)
 		/* not a socket, cannot judge by route, or not connected,
 		 * leave it alone */
 		return 0; /* OK */
 
 	/* the route to the peer is still workable? */
 
-	if (!_lws_route_est_outgoing(pt, &wsi->sa46_peer)) {
+	if (!_lws_route_est_outgoing(pt, sa46_peer)) {
 		/* no way to talk to the peer */
 		lwsl_wsi_notice(wsi, "dest route gone");
 		return 1;
@@ -320,16 +330,12 @@ _lws_route_check_wsi(struct lws *wsi)
 
 	/* the source address is still workable? */
 
-	lws_sa46_write_numeric_address(&wsi->sa46_local,
-				       buf, sizeof(buf));
-	//lwsl_notice("%s: %s sa46_local %s fam %d\n", __func__, wsi->lc.gutag,
-	//		buf, wsi->sa46_local.sa4.sin_family);
+	lws_sa46_write_numeric_address(sa46_local, buf, sizeof(buf));
 
-	if (wsi->sa46_local.sa4.sin_family &&
-	    !_lws_route_find_source(pt, &wsi->sa46_local)) {
+	if (sa46_local->sa4.sin_family &&
+	    !_lws_route_find_source(pt, sa46_local)) {
 
-		lws_sa46_write_numeric_address(&wsi->sa46_local,
-					       buf, sizeof(buf));
+		lws_sa46_write_numeric_address(sa46_local, buf, sizeof(buf));
 		lwsl_wsi_notice(wsi, "source %s gone", buf);
 
 		return 1;
@@ -386,17 +392,21 @@ _lws_route_pt_close_route_users(struct lws_context_per_thread *pt,
 	lwsl_cx_info(pt->context, "closing users of route %d", uidx);
 
 	for (n = 0; n < pt->fds_count; n++) {
+		lws_cao_t *cao;
+
 		wsi = wsi_from_fd(pt->context, pt->fds[n].fd);
 		if (!wsi)
 			continue;
 
-		if (wsi->desc.u.sockfd != LWS_SOCK_INVALID &&
+		cao = lws_wsi_cao(wsi);
+
+		if (cao->desc.u.sockfd != LWS_SOCK_INVALID &&
 #if defined(LWS_WITH_UNIX_SOCK)
 		    !wsi->unix_skt &&
-		    wsi->sa46_peer.sa4.sin_family != AF_UNIX &&
+		    cao->conmon.peer46.sa4.sin_family != AF_UNIX &&
 #endif
-		    wsi->sa46_peer.sa4.sin_family &&
-		    wsi->peer_route_uidx == uidx) {
+		    cao->conmon.peer46.sa4.sin_family &&
+		    cao->peer_route_uidx == uidx) {
 			lwsl_wsi_notice(wsi, "culling wsi");
 			lws_wsi_close(wsi, LWS_TO_KILL_ASYNC);
 		}

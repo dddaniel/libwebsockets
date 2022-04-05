@@ -221,7 +221,7 @@ init_vhost_listen_wsi_sd(struct lws *wsi)
 
 	sd_event_add_io(pt_to_priv_sd(pt)->io_loop,
 			&wsi_to_priv_sd(wsi)->source,
-			wsi->desc.u.sockfd,
+			lws_wsi_desc(wsi)->u.sockfd,
 			wsi_to_priv_sd(wsi)->events,
 			sock_accept_handler,
 			wsi);
@@ -340,14 +340,14 @@ sock_accept_sd(struct lws *wsi)
 	if (wsi->role_ops->file_handle)
 		sd_event_add_io(pt_to_priv_sd(pt)->io_loop,
 				&wsi_to_priv_sd(wsi)->source,
-				wsi->desc.u.filefd,
+				lws_wsi_desc(wsi)->u.filefd,
 				wsi_to_priv_sd(wsi)->events,
 				sock_accept_handler,
 				wsi);
 	else
 		sd_event_add_io(pt_to_priv_sd(pt)->io_loop,
 				&wsi_to_priv_sd(wsi)->source,
-				wsi->desc.u.sockfd,
+				lws_wsi_desc(wsi)->u.sockfd,
 				wsi_to_priv_sd(wsi)->events,
 				sock_accept_handler,
 				wsi);

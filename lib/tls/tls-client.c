@@ -38,9 +38,9 @@ lws_ssl_client_connect1(struct lws *wsi, char *errbuf, size_t len)
 
 	case LWS_SSL_CAPABLE_DONE:
 		lws_tls_restrict_return_handshake(wsi);
-		lws_metrics_caliper_report(wsi->cal_conn, METRES_GO);
-		wsi->conmon.ciu_tls = (lws_conmon_interval_us_t)
-					(lws_now_usecs() - wsi->conmon_datum);
+		lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_GO);
+		lws_wsi_conmon(wsi)->ciu_tls = (lws_conmon_interval_us_t)
+			(lws_now_usecs() - lws_wsi_cao(wsi)->conmon_datum);
 
 		return 1; /* connected */
 
@@ -70,7 +70,7 @@ lws_ssl_client_connect2(struct lws *wsi, char *errbuf, size_t len)
 			lws_tls_restrict_return_handshake(wsi);
 
 			if (lws_tls_client_confirm_peer_cert(wsi, errbuf, len)) {
-				lws_metrics_caliper_report(wsi->cal_conn, METRES_NOGO);
+				lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_NOGO);
 				return -1;
 			}
 
@@ -92,13 +92,13 @@ lws_ssl_client_connect2(struct lws *wsi, char *errbuf, size_t len)
 	lws_tls_restrict_return_handshake(wsi);
 
 	if (lws_tls_client_confirm_peer_cert(wsi, errbuf, len)) {
-		lws_metrics_caliper_report(wsi->cal_conn, METRES_NOGO);
+		lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_NOGO);
 		return -1;
 	}
 
-	lws_metrics_caliper_report(wsi->cal_conn, METRES_GO);
-	wsi->conmon.ciu_tls = (lws_conmon_interval_us_t)
-					(lws_now_usecs() - wsi->conmon_datum);
+	lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_GO);
+	lws_wsi_conmon(wsi)->ciu_tls = (lws_conmon_interval_us_t)
+			(lws_now_usecs() - lws_wsi_cao(wsi)->conmon_datum);
 
 	return 1; /* connected */
 }
@@ -210,9 +210,9 @@ lws_client_create_tls(struct lws *wsi, const char **pcce, int do_c1)
 		if (!do_c1)
 			return CCTLS_RETURN_DONE;
 
-		lws_metrics_caliper_report(wsi->cal_conn, METRES_GO);
-		lws_metrics_caliper_bind(wsi->cal_conn, wsi->a.context->mt_conn_tls);
-		wsi->conmon_datum = lws_now_usecs();
+		lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_GO);
+		lws_metrics_caliper_bind(lws_wsi_cao(wsi)->cal_conn, wsi->a.context->mt_conn_tls);
+		lws_wsi_cao(wsi)->conmon_datum = lws_now_usecs();
 
 		n = lws_ssl_client_connect1(wsi, (char *)wsi->a.context->pt[(int)wsi->tsi].serv_buf,
 					    wsi->a.context->pt_serv_buf_size);
@@ -222,7 +222,7 @@ lws_client_create_tls(struct lws *wsi, const char **pcce, int do_c1)
 
 		if (n < 0) {
 			*pcce = (const char *)wsi->a.context->pt[(int)wsi->tsi].serv_buf;
-			lws_metrics_caliper_report(wsi->cal_conn, METRES_NOGO);
+			lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_NOGO);
 			return CCTLS_RETURN_ERROR;
 		}
 		/* ...connect1 already handled caliper if SSL_accept done */

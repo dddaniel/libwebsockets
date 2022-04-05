@@ -563,11 +563,11 @@ lws_sort_dns_dump(struct lws *wsi)
 
 	(void)n; /* nologs */
 
-	if (!lws_dll2_get_head(&wsi->dns_sorted_list))
+	if (!lws_dll2_get_head(&lws_wsi_cao(wsi)->dns_sorted_list))
 		lwsl_wsi_notice(wsi, "empty");
 
 	lws_start_foreach_dll(struct lws_dll2 *, d,
-			      lws_dll2_get_head(&wsi->dns_sorted_list)) {
+			      lws_dll2_get_head(&lws_wsi_cao(wsi)->dns_sorted_list)) {
 		lws_dns_sort_t *s = lws_container_of(d, lws_dns_sort_t, list);
 		char dest[48], gw[48];
 
@@ -594,6 +594,9 @@ lws_sort_dns(struct lws *wsi, const struct addrinfo *result)
 	const struct addrinfo *ai = result;
 
 	lwsl_wsi_info(wsi, "sort_dns: %p", result);
+
+	/* we must have a cao to sort dns */
+	lws_wsi_cao(wsi);
 
 	/*
 	 * We're going to take the dns results and produce our own linked-list
@@ -738,7 +741,8 @@ lws_sort_dns(struct lws *wsi, const struct addrinfo *result)
 
 just_add:
 		if (!bestsrc) {
-			lws_dll2_add_tail(&ds->list, &wsi->dns_sorted_list);
+			lws_dll2_add_tail(&ds->list,
+					  lws_wsi_cao(wsi)->dns_sorted_list);
 			goto next;
 		}
 
@@ -751,7 +755,8 @@ just_add:
 		 * its preferability, so the head entry is the most preferred
 		 */
 
-		lws_dll2_add_sorted(&ds->list, &wsi->dns_sorted_list,
+		lws_dll2_add_sorted(&ds->list,
+				    lws_wsi_cao(wsi)->dns_sorted_list,
 				    lws_sort_dns_compare);
 #else
 		/*
@@ -760,7 +765,8 @@ just_add:
 		 * order of the addrinfo results
 		 */
 
-		lws_dll2_add_tail(&ds->list, &wsi->dns_sorted_list);
+		lws_dll2_add_tail(&ds->list,
+				  &lws_wsi_cao(wsi)->dns_sorted_list);
 #endif
 
 next:
@@ -774,5 +780,5 @@ next:
 	lws_sort_dns_dump(wsi);
 #endif
 
-	return !wsi->dns_sorted_list.count;
+	return !lws_wsi_cao(wsi)->dns_sorted_list.count;
 }

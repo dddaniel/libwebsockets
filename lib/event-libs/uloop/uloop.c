@@ -101,7 +101,7 @@ lws_uloop_cb(struct uloop_fd *ufd, unsigned int revents)
 	struct lws_context_per_thread *pt;
 	struct lws_pollfd eventfd;
 
-	eventfd.fd = wu->wsi->desc.u.sockfd;
+	eventfd.fd = lws_wsi_desc(wu->wsi)->u.sockfd;
 	eventfd.events = 0;
 	eventfd.revents = 0;
 
@@ -139,7 +139,7 @@ elops_listen_init_uloop(struct lws_dll2 *d, void *user)
 	struct lws_wsi_eventlibs_uloop *wu = wsi_to_priv_uloop(wsi);
 
 	wu->wsi = wsi;
-	wu->fd.fd = wsi->desc.u.sockfd;
+	wu->fd.fd = lws_wsi_desc(wsi)->u.sockfd;
 	wu->fd.cb = lws_uloop_cb;
 	uloop_fd_add(&wu->fd,  ULOOP_READ);
 	wu->actual_events = ULOOP_READ;
@@ -176,7 +176,7 @@ elops_accept_uloop(struct lws *wsi)
 	struct lws_wsi_eventlibs_uloop *wu = wsi_to_priv_uloop(wsi);
 
 	wu->wsi = wsi;
-	wu->fd.fd = wsi->desc.u.sockfd;
+	wu->fd.fd = lws_wsi_desc(wsi)->u.sockfd;
 	wu->fd.cb = lws_uloop_cb;
 	uloop_fd_add(&wu->fd, ULOOP_READ);
 	wu->actual_events = ULOOP_READ;
@@ -272,7 +272,7 @@ elops_init_vhost_listen_wsi_uloop(struct lws *wsi)
 
 	wu = wsi_to_priv_uloop(wsi);
 	wu->wsi = wsi;
-	wu->fd.fd = wsi->desc.u.sockfd;
+	wu->fd.fd = lws_wsi_desc(wsi)->u.sockfd;
 	wu->fd.cb = lws_uloop_cb;
 	uloop_fd_add(&wu->fd,  ULOOP_READ);
 

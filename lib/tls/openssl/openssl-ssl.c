@@ -219,7 +219,7 @@ lws_ssl_capable_read(struct lws *wsi, unsigned char *buf, size_t len)
 	}
 #endif
 
-	lwsl_debug("%s: SSL_read says %d\n", lws_wsi_tag(wsi), n);
+	lwsl_wsi_debug(wsi, "SSL_read says %d", n);
 	/* manpage: returning 0 means connection shut down
 	 *
 	 * 2018-09-10: https://github.com/openssl/openssl/issues/1903
@@ -541,10 +541,10 @@ __lws_tls_shutdown(struct lws *wsi)
 #endif
 	ERR_clear_error();
 	n = SSL_shutdown(wsi->tls.ssl);
-	lwsl_debug("SSL_shutdown=%d for fd %d\n", n, wsi->desc.u.sockfd);
+	lwsl_debug("SSL_shutdown=%d for fd %d\n", n, lws_wsi_desc(wsi)->u.sockfd);
 	switch (n) {
 	case 1: /* successful completion */
-		n = shutdown(wsi->desc.u.sockfd, SHUT_WR);
+		n = shutdown(lws_wsi_desc(wsi)->u.sockfd, SHUT_WR);
 		return LWS_SSL_CAPABLE_DONE;
 
 	case 0: /* needs a retry */

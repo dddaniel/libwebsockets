@@ -413,7 +413,7 @@ __lws_async_dns_server_destroy(lws_async_dns_server_t *dsrv)
 		lwsl_wsi_notice(dsrv->wsi, "late free of incomplete dns wsi");
 		__lws_lc_untag(dsrv->wsi->a.context, &dsrv->wsi->lc);
 #if defined(LWS_WITH_SYS_METRICS)
-		lws_metrics_tags_destroy(&dsrv->wsi->cal_conn.mtags_owner);
+		lws_metrics_tags_destroy(&lws_wsi_cao(dsrv->wsi)->cal_conn.mtags_owner);
 #endif
 		lws_free_set_NULL(dsrv->wsi->udp);
 		lws_free_set_NULL(dsrv->wsi);
@@ -715,7 +715,8 @@ ns_clean(struct lws_dll2 *d, void *user)
 		lwsl_wsi_notice(dsrv->wsi, "late free of incomplete dns wsi");
 		__lws_lc_untag(dsrv->wsi->a.context, &dsrv->wsi->lc);
 #if defined(LWS_WITH_SYS_METRICS)
-		lws_metrics_tags_destroy(&dsrv->wsi->cal_conn.mtags_owner);
+		if (lws_wsi_cao(dsrv->wsi))
+			lws_metrics_tags_destroy(&lws_wsi_cao(dsrv->wsi)->cal_conn.mtags_owner);
 #endif
 		lws_free_set_NULL(dsrv->wsi->udp);
 		lws_free_set_NULL(dsrv->wsi);

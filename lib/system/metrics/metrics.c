@@ -68,9 +68,12 @@ lws_metrics_tag_add(lws_dll2_owner_t *owner, const char *name, const char *val)
 int
 lws_metrics_tag_wsi_add(struct lws *wsi, const char *name, const char *val)
 {
+	if (!wsi->cao_owner.count)
+		return 0;
+
 	__lws_lc_tag(wsi->a.context, NULL, &wsi->lc, "|%s", val);
 
-	return lws_metrics_tag_add(&wsi->cal_conn.mtags_owner, name, val);
+	return lws_metrics_tag_add(&lws_wsi_cao(wsi)->cal_conn.mtags_owner, name, val);
 }
 
 #if defined(LWS_WITH_SECURE_STREAMS)
@@ -632,7 +635,7 @@ lws_metrics_hist_bump_describe_wsi(struct lws *wsi, lws_metric_pub_t *pub,
 				wsi->stash->cis[CIS_HOST]);
 #endif
 
-	lws_sa46_write_numeric_address(&wsi->sa46_peer, d1, sizeof(d1));
+	lws_sa46_write_numeric_address(lws_wsi_cao_sa46_peer(wsi), d1, sizeof(d1));
 	p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "peer=\"%s\",", d1);
 
 	p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "%s", name);

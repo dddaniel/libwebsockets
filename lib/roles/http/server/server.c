@@ -319,7 +319,7 @@ done_list:
 			lwsl_debug("%s: lws_socket_bind says %d\n", __func__, is);
 		}
 
-		wsi->desc.u.sockfd = sockfd;
+		lws_wsi_desc(wsi)->u.sockfd = sockfd;
 		wsi->a.protocol = a->vhost->protocols;
 		lws_vhost_bind_wsi(a->vhost, wsi);
 		wsi->listener = 1;
@@ -330,7 +330,7 @@ done_list:
 		pt = &cx->pt[m];
 		lws_pt_lock(pt, __func__);
 
-		if (__insert_wsi_socket_into_fds(cx, wsi)) {
+		if (__insert_wsi_socket_into_fds(cx, wsi, lws_wsi_desc(wsi))) {
 			lwsl_notice("inserting wsi socket into fds failed\n");
 			lws_pt_unlock(pt);
 			goto bail;
@@ -342,7 +342,7 @@ done_list:
 #if defined(WIN32) && defined(TCP_FASTOPEN)
 		if (a->vhost->fo_listen_queue) {
 			int optval = 1;
-			if (setsockopt(wsi->desc.u.sockfd, IPPROTO_TCP,
+			if (setsockopt(lws_wsi_desc(wsi)->u.sockfd, IPPROTO_TCP,
 				       TCP_FASTOPEN,
 				       (const char*)&optval, sizeof(optval)) < 0) {
 				int error = LWS_ERRNO;
@@ -355,14 +355,14 @@ done_list:
 		if (a->vhost->fo_listen_queue) {
 			int qlen = a->vhost->fo_listen_queue;
 
-			if (setsockopt(wsi->desc.u.sockfd, SOL_TCP, TCP_FASTOPEN,
+			if (setsockopt(lws_wsi_desc(wsi)->u.sockfd, SOL_TCP, TCP_FASTOPEN,
 				       &qlen, sizeof(qlen)))
 				lwsl_warn("%s: TCP_FASTOPEN failed\n", __func__);
 		}
 #endif
 #endif
 
-		n = listen(wsi->desc.u.sockfd, LWS_SOMAXCONN);
+		n = listen(lws_wsi_desc(wsi)->u.sockfd, LWS_SOMAXCONN);
 		if (n < 0) {
 			lwsl_err("listen failed with error %d\n", LWS_ERRNO);
 			lws_dll2_remove(&wsi->listen_list);

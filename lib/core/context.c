@@ -1948,6 +1948,7 @@ lws_context_destroy(struct lws_context *context)
 			while (pt->fds_count) {
 				struct lws *wsi = wsi_from_fd(context,
 							      pt->fds[0].fd);
+				unsigned int fc = pt->fds_count;
 
 				if (wsi) {
 
@@ -1960,9 +1961,12 @@ lws_context_destroy(struct lws_context *context)
 						"ctx destroy"
 						/* no protocol close */);
 
+					assert(pt->fds_count != fc);
+
 					if (pt->pipe_wsi == wsi)
 						pt->pipe_wsi = NULL;
-				}
+				} else
+					assert(0);
 			}
 
 #if defined(LWS_WITH_CGI)

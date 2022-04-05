@@ -52,7 +52,7 @@ lws_conmon_append_copy_new_dns_results(struct lws *wsi,
 	 */
 
 	while (cai) {
-		struct addrinfo *ai = wsi->conmon.dns_results_copy;
+		struct addrinfo *ai = lws_wsi_conmon(wsi)->dns_results_copy;
 		char skip = 0;
 
 		/* do we already have this guy? */
@@ -112,8 +112,8 @@ lws_conmon_append_copy_new_dns_results(struct lws *wsi,
 				       cl);
 				ai->ai_canonname[cl] = '\0';
 			}
-			ai->ai_next = wsi->conmon.dns_results_copy;
-			wsi->conmon.dns_results_copy = ai;
+			ai->ai_next = lws_wsi_conmon(wsi)->dns_results_copy;
+			lws_wsi_conmon(wsi)->dns_results_copy = ai;
 		}
 
 		cai = cai->ai_next;
@@ -136,11 +136,13 @@ lws_conmon_addrinfo_destroy(struct addrinfo *ai)
 void
 lws_conmon_wsi_take(struct lws *wsi, struct lws_conmon *dest)
 {
-	memcpy(dest, &wsi->conmon, sizeof(*dest));
-	dest->peer46 = wsi->sa46_peer;
+	if (!_lws_wsi_cao(wsi))
+		return;
+	memcpy(dest, lws_wsi_conmon(wsi), sizeof(*dest));
+	dest->peer46 = lws_wsi_conmon(wsi)->peer46;
 
 	/* wsi no longer has to free it... */
-	wsi->conmon.dns_results_copy = NULL;
+	lws_wsi_conmon(wsi)->dns_results_copy = NULL;
 	wsi->perf_done = 1;
 }
 

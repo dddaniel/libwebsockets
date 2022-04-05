@@ -351,7 +351,7 @@ lws_wsi_inject_to_loop(struct lws_context_per_thread *pt, struct lws *wsi)
 		if (pt->context->event_loop_ops->sock_accept(wsi))
 			goto bail;
 
-	if (__insert_wsi_socket_into_fds(pt->context, wsi))
+	if (__insert_wsi_socket_into_fds(pt->context, wsi, lws_wsi_desc(wsi)))
 		goto bail;
 
 	ret = 0;
@@ -370,7 +370,7 @@ bail:
 int
 lws_wsi_extract_from_loop(struct lws *wsi)
 {
-	if (lws_socket_is_valid(wsi->desc.u.sockfd))
+	if (lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd))
 		__remove_wsi_socket_from_fds(wsi);
 
 	if (!wsi->a.context->event_loop_ops->destroy_wsi &&
@@ -979,7 +979,7 @@ lws_get_socket_fd(struct lws *wsi)
 {
 	if (!wsi)
 		return -1;
-	return wsi->desc.u.sockfd;
+	return lws_wsi_desc(wsi)->u.sockfd;
 }
 
 
@@ -1037,8 +1037,10 @@ _lws_generic_transaction_completed_active_conn(struct lws **_wsi, char take_vh_l
 	 * If not, that's it for us.
 	 */
 
-	if (lws_dll2_is_detached(&wsi->dll_cli_active_conns))
+	if (lws_dll2_is_detached(&wsi->dll_cli_active_conns)) {
+		lwsl_wsi_err(wsi, "%s: no new\n", __func__);
 		return 0; /* no new transaction */
+	}
 
 	/*
 	 * With h1 queuing, the original "active client" moves his attributes
@@ -1084,14 +1086,12 @@ _lws_generic_transaction_completed_active_conn(struct lws **_wsi, char take_vh_l
 
 	lws_dll2_remove(&wnew->dll2_cli_txn_queue);
 
-	assert(lws_socket_is_valid(wsi->desc.u.sockfd));
+	assert(lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd));
 
 	__lws_change_pollfd(wsi, LWS_POLLOUT | LWS_POLLIN, 0);
 
-	/* copy the fd */
+	/* copy the desc and CAOs */
 	wnew->desc = wsi->desc;
-
-	assert(lws_socket_is_valid(wnew->desc.u.sockfd));
 
 	/* disconnect the fd from association with old wsi */
 
@@ -1099,7 +1099,7 @@ _lws_generic_transaction_completed_active_conn(struct lws **_wsi, char take_vh_l
 		return -1;
 
 	sanity_assert_no_wsi_traces(wsi->a.context, wsi);
-	sanity_assert_no_sockfd_traces(wsi->a.context, wsi->desc.u.sockfd);
+	sanity_assert_no_sockfd_traces(wsi->a.context, lws_wsi_desc(wsi)->u.sockfd);
 	wsi->desc.u.sockfd = LWS_SOCK_INVALID;
 
 	__lws_wsi_remove_from_sul(wsi);
@@ -1120,9 +1120,13 @@ _lws_generic_transaction_completed_active_conn(struct lws **_wsi, char take_vh_l
 
 	/* point the fd table entry to new guy */
 
-	assert(lws_socket_is_valid(wnew->desc.u.sockfd));
+	lws_cao_remove_all(wnew); /* get rid of any unused cao */
+	lwsl_err("%s: migrating %d cao\n", __func__, wsi->cao_owner.count);
+	lws_dll2_migrate(&wsi->cao_owner, &wnew->cao_owner);
 
-	if (__insert_wsi_socket_into_fds(wsi->a.context, wnew))
+	assert(lws_socket_is_valid(lws_wsi_desc(wnew)->u.sockfd));
+
+	if (__insert_wsi_socket_into_fds(wsi->a.context, wnew, lws_wsi_desc(wnew)))
 		return -1;
 
 #if defined(LWS_WITH_TLS)
@@ -1454,7 +1458,6 @@ lws_wsi_mux_sibling_disconnect(struct lws *wsi)
 		}
 	} lws_end_foreach_llp(w, mux.sibling_list);
 	wsi->mux.parent_wsi->mux.child_count--;
-
 	wsi->mux.parent_wsi = NULL;
 }
 

@@ -81,7 +81,7 @@ __lws_shadow_wsi(struct lws_dbus_ctx *ctx, DBusWatch *w, int fd, int create_ok)
 
 	lwsl_info("%s: creating shadow wsi\n", __func__);
 
-	wsi->desc.u.sockfd = fd;
+	lws_wsi_desc(wsi)->u.sockfd = fd;
 	lws_role_transition(wsi, 0, LRS_ESTABLISHED, &role_ops_dbus);
 	wsi->a.protocol = ctx->vh->protocols;
 	wsi->shadow = 1;
@@ -92,7 +92,8 @@ __lws_shadow_wsi(struct lws_dbus_ctx *ctx, DBusWatch *w, int fd, int create_ok)
 		     &wsi->lc, "dbus|%s", ctx->vh->name);
 
 	lws_vhost_bind_wsi(ctx->vh, wsi);
-	if (__insert_wsi_socket_into_fds(ctx->vh->context, wsi)) {
+	if (__insert_wsi_socket_into_fds(ctx->vh->context, wsi,
+					 lws_wsi_desc(wsi))) {
 		lwsl_err("inserting wsi socket into fds failed\n");
 		__lws_vhost_unbind_wsi(wsi); /* cx + vh lock */
 		lws_free(wsi);
@@ -116,7 +117,7 @@ __lws_shadow_wsi_destroy(struct lws_dbus_ctx *ctx, struct lws *wsi)
 
 	if (__remove_wsi_socket_from_fds(wsi)) {
 		lwsl_err("%s: unable to remove %d from fds\n", __func__,
-				wsi->desc.u.sockfd);
+				lws_wsi_desc(wsi)->u.sockfd);
 
 		return 1;
 	}

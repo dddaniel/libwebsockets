@@ -239,7 +239,7 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		goto finished;
 
 	case LWS_CALLBACK_CLOSED_CLIENT_HTTP:
-		lwsl_info("%s: closed: %s\n", __func__, lws_wsi_tag(client_wsi[idx]));
+		lwsl_wsi_info(wsi, "%s: closed: %s\n", __func__, lws_wsi_tag(client_wsi[idx]));
 
 		dump_conmon_data(wsi);
 

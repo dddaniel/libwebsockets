@@ -824,7 +824,7 @@ lws_callback_http_dummy(struct lws *wsi, enum lws_callback_reasons reason,
 
 				lwsl_wsi_info(siwsi, "expected POST in end: "
 						     "closing stdin fd %d",
-						     siwsi->desc.u.sockfd);
+						     lws_wsi_desc(siwsi)->u.sockfd);
 
 				/*
 				 * We don't want the child / parent relationship

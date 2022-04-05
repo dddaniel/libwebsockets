@@ -240,7 +240,7 @@ typedef struct lws_metric_caliper {
 #define lws_metrics_caliper_report_hist(_name, pwsi) if (_name.mt) { \
 		lws_metrics_hist_bump_priv_tagged(lws_metrics_priv_to_pub(_name.mt), \
 						  &_name.mtags_owner, \
-						  pwsi ? &((pwsi)->cal_conn.mtags_owner) : NULL); \
+						  pwsi && _lws_wsi_cao(pwsi) ? &(lws_wsi_cao(pwsi)->cal_conn.mtags_owner) : NULL); \
 		lws_metrics_caliper_done(_name);  }
 
 #define lws_metrics_caliper_cancel(_name) { lws_metrics_caliper_done(_name); }

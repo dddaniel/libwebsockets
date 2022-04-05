@@ -47,15 +47,17 @@ __lws_reset_wsi(struct lws *wsi)
 
 	lws_free_set_NULL(wsi->cli_hostname_copy);
 
-	if (wsi->conmon.dns_results_copy) {
-		lws_conmon_addrinfo_destroy(wsi->conmon.dns_results_copy);
-		wsi->conmon.dns_results_copy = NULL;
-	}
+	if (wsi->cao_owner.count) {
+		if (lws_wsi_conmon(wsi)->dns_results_copy) {
+			lws_conmon_addrinfo_destroy(lws_wsi_conmon(wsi)->dns_results_copy);
+			lws_wsi_conmon(wsi)->dns_results_copy = NULL;
+		}
 
-	wsi->conmon.ciu_dns =
-		wsi->conmon.ciu_sockconn =
-		wsi->conmon.ciu_tls =
-		wsi->conmon.ciu_txn_resp = 0;
+		lws_wsi_conmon(wsi)->ciu_dns =
+				lws_wsi_conmon(wsi)->ciu_sockconn =
+				lws_wsi_conmon(wsi)->ciu_tls =
+				lws_wsi_conmon(wsi)->ciu_txn_resp = 0;
+	}
 
 	/*
 	 * if we have wsi in our transaction queue, if we are closing we
@@ -123,6 +125,8 @@ __lws_reset_wsi(struct lws *wsi)
 	lws_dll2_remove(&wsi->dll_cli_active_conns);
 	if (wsi->cli_hostname_copy)
 		lws_free_set_NULL(wsi->cli_hostname_copy);
+
+	lws_cao_remove_all(wsi);
 #endif
 
 #if defined(LWS_WITH_SYS_ASYNC_DNS)
@@ -180,7 +184,7 @@ __lws_reset_wsi(struct lws *wsi)
 	wsi->upgraded_to_http2 = wsi->mux_stream_immortal =
 	wsi->h2_acked_settings = wsi->seen_nonpseudoheader =
 	wsi->socket_is_permanently_unusable = wsi->favoured_pollin =
-	wsi->already_did_cce = wsi->told_user_closed =
+	wsi->already_did_cce = wsi->told_user_closed = wsi->represent_nwsi =
 	wsi->waiting_to_send_close_frame = wsi->close_needs_ack =
 	wsi->parent_pending_cb_on_writable = wsi->seen_zero_length_recv =
 	wsi->close_when_buffered_out_drained = wsi->could_have_pending = 0;
@@ -324,7 +328,12 @@ void
 lws_addrinfo_clean(struct lws *wsi)
 {
 #if defined(LWS_WITH_CLIENT)
-	struct lws_dll2 *d = lws_dll2_get_head(&wsi->dns_sorted_list), *d1;
+	struct lws_dll2 *d, *d1;
+
+	if (!wsi->cao_owner.count)
+		return;
+
+	d = lws_dll2_get_head(&lws_wsi_cao(wsi)->dns_sorted_list);
 
 	while (d) {
 		lws_dns_sort_t *r = lws_container_of(d, lws_dns_sort_t, list);
@@ -372,15 +381,18 @@ __lws_close_free_wsi(struct lws *wsi, enum lws_close_status reason,
 #if defined(LWS_WITH_SYS_METRICS) && \
     (defined(LWS_WITH_CLIENT) || defined(LWS_WITH_SERVER))
 	/* wsi level: only reports if dangling caliper */
-	if (wsi->cal_conn.mt && wsi->cal_conn.us_start) {
-		if ((lws_metrics_priv_to_pub(wsi->cal_conn.mt)->flags) & LWSMTFL_REPORT_HIST) {
-			lws_metrics_caliper_report_hist(wsi->cal_conn, (struct lws *)NULL);
-		} else {
-			lws_metrics_caliper_report(wsi->cal_conn, METRES_NOGO);
-			lws_metrics_caliper_done(wsi->cal_conn);
-		}
-	} else
-		lws_metrics_caliper_done(wsi->cal_conn);
+
+	if (wsi->cao_owner.count) {
+		if (lws_wsi_cao(wsi)->cal_conn.mt && lws_wsi_cao(wsi)->cal_conn.us_start) {
+			if ((lws_metrics_priv_to_pub(lws_wsi_cao(wsi)->cal_conn.mt)->flags) & LWSMTFL_REPORT_HIST) {
+				lws_metrics_caliper_report_hist((lws_wsi_cao(wsi)->cal_conn), (struct lws *)NULL);
+			} else {
+				lws_metrics_caliper_report(lws_wsi_cao(wsi)->cal_conn, METRES_NOGO);
+				lws_metrics_caliper_done(lws_wsi_cao(wsi)->cal_conn);
+			}
+		} else
+			lws_metrics_caliper_done(lws_wsi_cao(wsi)->cal_conn);
+	}
 #endif
 
 #if defined(LWS_WITH_SYS_ASYNC_DNS)
@@ -558,14 +570,14 @@ __lws_close_free_wsi(struct lws *wsi, enum lws_close_status reason,
 	    lws_rops_func_fidx(wsi->role_ops, LWS_ROPS_close_via_role_protocol).
 					 close_via_role_protocol(wsi, reason)) {
 		lwsl_wsi_info(wsi, "close_via_role took over (sockfd %d)",
-			      wsi->desc.u.sockfd);
+				lws_wsi_desc(wsi)->u.sockfd);
 		return;
 	}
 
 just_kill_connection:
 
 	lwsl_wsi_debug(wsi, "real just_kill_connection A: (sockfd %d)",
-			wsi->desc.u.sockfd);
+			lws_wsi_desc(wsi)->u.sockfd);
 
 #if defined(LWS_WITH_THREADPOOL) && defined(LWS_HAVE_PTHREAD_H)
 	lws_threadpool_wsi_closing(wsi);
@@ -595,6 +607,11 @@ just_kill_connection:
 		lws_free_set_NULL(wsi->udp);
 	}
 #endif
+
+	/*
+	 * Eg, for h2, this removes the wsi->mux.parent_wsi needed to bind to
+	 * the CAO
+	 */
 
 	if (lws_rops_fidx(wsi->role_ops, LWS_ROPS_close_kill_connection))
 		lws_rops_func_fidx(wsi->role_ops,
@@ -668,12 +685,12 @@ just_kill_connection:
 #endif
 		{
 			lwsl_info("%s: shutdown conn: %s (sk %d, state 0x%x)\n",
-				  __func__, lws_wsi_tag(wsi), (int)(lws_intptr_t)wsi->desc.u.sockfd,
+				  __func__, lws_wsi_tag(wsi), (int)(lws_intptr_t)lws_wsi_desc(wsi)->u.sockfd,
 				  lwsi_state(wsi));
 			if (!wsi->socket_is_permanently_unusable &&
-			    lws_socket_is_valid(wsi->desc.u.sockfd)) {
+			    lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd)) {
 				wsi->socket_is_permanently_unusable = 1;
-				n = shutdown(wsi->desc.u.sockfd, SHUT_WR);
+				n = shutdown(lws_wsi_desc(wsi)->u.sockfd, SHUT_WR);
 			}
 		}
 		if (n)
@@ -690,7 +707,7 @@ just_kill_connection:
 #if defined(LWS_WITH_CLIENT)
 		    !wsi->close_is_redirect &&
 #endif
-		    lws_socket_is_valid(wsi->desc.u.sockfd) &&
+		    lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd) &&
 		    lwsi_state(wsi) != LRS_SHUTDOWN &&
 		    (context->event_loop_ops->flags & LELOF_ISPOLL)) {
 			__lws_change_pollfd(wsi, LWS_POLLOUT, LWS_POLLIN);
@@ -704,7 +721,7 @@ just_kill_connection:
 	}
 
 	lwsl_wsi_info(wsi, "real just_kill_connection: sockfd %d\n",
-			wsi->desc.u.sockfd);
+			lws_wsi_desc(wsi)->u.sockfd);
 
 #ifdef LWS_WITH_HUBBUB
 	if (wsi->http.rw) {
@@ -726,8 +743,9 @@ just_kill_connection:
 	//if (wsi->told_event_loop_closed) // cgi std close case (dummy-callback)
 	//	return;
 
-	/* checking return redundant since we anyway close */
-	__remove_wsi_socket_from_fds(wsi);
+	if (wsi->cao_owner.count || wsi->desc.u.sockfd != LWS_SOCK_INVALID)
+		/* checking return redundant since we anyway close */
+		__remove_wsi_socket_from_fds(wsi);
 
 	lwsi_set_state(wsi, LRS_DEAD_SOCKET);
 	lws_buflist_destroy_all_segments(&wsi->buflist);
@@ -885,21 +903,23 @@ __lws_close_free_wsi_final(struct lws *wsi)
 	int n;
 
 	if (!wsi->shadow &&
-	    lws_socket_is_valid(wsi->desc.u.sockfd) && !lws_ssl_close(wsi)) {
-		lwsl_wsi_debug(wsi, "fd %d", wsi->desc.u.sockfd);
-		n = compatible_close(wsi->desc.u.sockfd);
+	    lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd) && !lws_ssl_close(wsi)) {
+		lwsl_wsi_debug(wsi, "fd %d (cao %d)", lws_wsi_desc(wsi)->u.sockfd, wsi->cao_owner.count);
+		n = compatible_close(lws_wsi_desc(wsi)->u.sockfd);
 		if (n)
 			lwsl_wsi_debug(wsi, "closing: close ret %d", LWS_ERRNO);
 
-		__remove_wsi_socket_from_fds(wsi);
-		if (lws_socket_is_valid(wsi->desc.u.sockfd))
-			delete_from_fd(wsi->a.context, wsi->desc.u.sockfd);
+		if (wsi->cao_owner.count || wsi->desc.u.sockfd != LWS_SOCK_INVALID) {
+			__remove_wsi_socket_from_fds(wsi);
+			if (lws_socket_is_valid(lws_wsi_desc(wsi)->u.sockfd))
+				delete_from_fd(wsi->a.context, lws_wsi_desc(wsi)->u.sockfd);
+		}
 
 #if !defined(LWS_PLAT_FREERTOS) && !defined(WIN32) && !defined(LWS_PLAT_OPTEE)
 		delete_from_fdwsi(wsi->a.context, wsi);
 #endif
 
-		sanity_assert_no_sockfd_traces(wsi->a.context, wsi->desc.u.sockfd);
+		sanity_assert_no_sockfd_traces(wsi->a.context, lws_wsi_desc(wsi)->u.sockfd);
 	}
 
 	/* ... if we're closing the cancel pipe, account for it */
@@ -910,11 +930,11 @@ __lws_close_free_wsi_final(struct lws *wsi)
 
 		if (pt->pipe_wsi == wsi)
 			pt->pipe_wsi = NULL;
-		if (pt->dummy_pipe_fds[0] == wsi->desc.u.sockfd)
+		if (pt->dummy_pipe_fds[0] == lws_wsi_desc(wsi)->u.sockfd)
 			pt->dummy_pipe_fds[0] = LWS_SOCK_INVALID;
 	}
 
-	wsi->desc.u.sockfd = LWS_SOCK_INVALID;
+	lws_wsi_desc(wsi)->u.sockfd = LWS_SOCK_INVALID;
 
 #if defined(LWS_WITH_CLIENT)
 	lws_free_set_NULL(wsi->cli_hostname_copy);

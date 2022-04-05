@@ -51,10 +51,10 @@ lws_plat_change_pollfd(struct lws_context *context,
 int
 insert_wsi(const struct lws_context *context, struct lws *wsi)
 {
-    assert(context->lws_lookup[wsi->desc.u.sockfd -
+    assert(context->lws_lookup[lws_wsi_desc(wsi)->u.sockfd -
                                lws_plat_socket_offset()] == 0);
 
-    context->lws_lookup[wsi->desc.u.sockfd - \
+    context->lws_lookup[lws_wsi_desc(wsi)->u.sockfd - \
                       lws_plat_socket_offset()] = wsi;
 
     return 0;

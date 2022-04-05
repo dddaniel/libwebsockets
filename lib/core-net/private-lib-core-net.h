@@ -583,6 +583,101 @@ int
 lws_wsi_mux_apply_queue(struct lws *wsi);
 
 /*
+ * Connection Attempt Object (lws_cao_t)
+ *
+ * These are distinct socket connection attempts associated with a client wsi,
+ * at least until the wsi is destroyed.
+ *
+ * A client wsi might have multiple different connection attempts simultaneously
+ * ongoing to different addresses, eg, to different DNS result addresses.  There
+ * will be a lws_cao_t with its own initial wsi created for each distinct
+ * connection attempt.
+ *
+ * After one succeeds, the original wsi swaps its "losing" CAO / socket for the
+ * "winning" one and proceeds with the connection.  The "losing" CAO / wsi /
+ * sockets complete or fail their tcp connection, their wsis and sockets are
+ * closed, but the CAO containing their results is attached to the tail of the
+ * main wsi.
+ *
+ * Finished CAOs will typically appear on multiple addition dll2 lists related
+ * to statistics-keeping for the network objects involved in the connection, and
+ * are not destroyed until no list holds a reference to them.
+ */
+
+typedef struct {
+
+	lws_dll2_t		wsi_list; /* list owned by wsi, may be detached */
+
+	struct lws_conmon	conmon; /* connection monitoring information */
+	lws_usec_t		conmon_datum;
+
+#if defined(LWS_WITH_SYS_METRICS)
+	lws_metrics_caliper_compose(cal_conn)
+#endif
+
+	lws_sockaddr46		sa46_local;  /* source address we went out on...
+					 * .conmon.peer46 holds the peer sa46 */
+
+	lws_dll2_owner_t	dns_sorted_list;
+	/* lws_dns_sort_t: dns results wrapped and sorted in a linked-list...
+	 * deleted as they are tried, list empty == everything tried */
+
+	lws_desc_t		desc;
+
+#if defined(LWS_WITH_NETLINK)
+	lws_route_uidx_t	peer_route_uidx;
+	/**< unique index of the route the connection is estimated to take */
+#endif
+} lws_cao_t;
+
+lws_cao_t *
+lws_cao_create(struct lws *wsi);
+
+void
+lws_cao_destroy_if_unreferenced(lws_cao_t **cao);
+
+void
+lws_cao_destroy_if_unreferenced(lws_cao_t **_cao);
+
+void
+lws_cao_destroy(lws_cao_t **_cao);
+
+void
+lws_cao_remove_all(struct lws *wsi);
+
+/*
+ * Almost all cao operations are done to the HEAD cao on the wsi list, these
+ * helpers give you that in one step.  It's illegal if we expect a client wsi
+ * to have a HEAD cao and it doesn't, these helpers also check, log and assert
+ * if it happens.
+ */
+
+lws_cao_t *
+_lws_wsi_cao(struct lws *wsi); /* may be NULL without problems */
+
+lws_cao_t *
+lws_wsi_cao(struct lws *wsi);
+
+lws_conmon_t *
+lws_wsi_conmon(struct lws *wsi);
+
+#define lws_wsi_cao_sa46_peer(_w) (&lws_wsi_conmon(_w)->peer46)
+
+/*
+ * wsi have two places for the fd descriptor, for server and accepted server,
+ * there is wsi->desc, and for client, the HEAD entry in wsi->cao_owner list.
+ *
+ * This helper wraps the problem in a single helper to access the wsi desc and
+ * should be used in most places.
+ */
+
+#if defined(LWS_WITH_CLIENT)
+#define lws_wsi_desc(_w) ((_w)->cao_owner.count ? &lws_wsi_cao(_w)->desc : &(_w)->desc)
+#else
+#define lws_wsi_desc(_w) (&(_w)->desc)
+#endif
+
+/*
  * struct lws
  */
 
@@ -678,13 +773,6 @@ struct lws {
 	struct lws_dll2_owner		dll2_cli_txn_queue_owner;
 
 	/**< caliper is reused for tcp, tls and txn conn phases */
-
-	lws_dll2_t			speculative_list;
-	lws_dll2_owner_t		speculative_connect_owner;
-	/* wsis: additional connection candidates */
-	lws_dll2_owner_t		dns_sorted_list;
-	/* lws_dns_sort_t: dns results wrapped and sorted in a linked-list...
-	 * deleted as they are tried, list empty == everything tried */
 #endif
 
 #if defined(LWS_WITH_SYS_FAULT_INJECTION)
@@ -693,13 +781,6 @@ struct lws {
 	lws_sorted_usec_list_t		sul_fault_timedclose;
 	/**< used to inject a fault that closes the wsi after a random time */
 #endif
-
-#if defined(LWS_WITH_SYS_METRICS)
-	lws_metrics_caliper_compose(cal_conn)
-#endif
-
-	lws_sockaddr46			sa46_local;
-	lws_sockaddr46			sa46_peer;
 
 	/* pointers */
 
@@ -726,8 +807,13 @@ struct lws {
 	struct client_info_stash	*stash;
 	char				*cli_hostname_copy;
 
-	struct lws_conmon		conmon;
-	lws_usec_t			conmon_datum;
+	/*
+	 * CAOs related to the connection of this wsi are listed here for the
+	 * lifetime of the wsi
+	 */
+
+	lws_dll2_owner_t		cao_owner;
+
 #endif /* WITH_CLIENT */
 	void				*user_space;
 	void				*opaque_parent_data;
@@ -739,6 +825,10 @@ struct lws {
 	struct lws_lws_tls		tls;
 	char				alpn[24];
 #endif
+
+	/*
+	 * Server accepted fd... clients use the desc in the HEAD CAO
+	 */
 
 	lws_desc_t			desc; /* .filefd / .sockfd */
 
@@ -762,6 +852,7 @@ struct lws {
 	unsigned int			h2_stream_carries_ws:1; /* immortal set as well */
 	unsigned int			h2_stream_carries_sse:1; /* immortal set as well */
 	unsigned int			h2_acked_settings:1;
+	unsigned int			represent_nwsi:1;
 	unsigned int			seen_nonpseudoheader:1;
 	unsigned int			listener:1;
 	unsigned int			pf_packet:1;
@@ -875,10 +966,7 @@ struct lws {
 #if defined(LWS_WITH_CGI) || defined(LWS_WITH_CLIENT)
 	char reason_bf; /* internal writeable callback reason bitfield */
 #endif
-#if defined(LWS_WITH_NETLINK)
-	lws_route_uidx_t		peer_route_uidx;
-	/**< unique index of the route the connection is estimated to take */
-#endif
+
 	uint8_t immortal_substream_count;
 	/* volatile to make sure code is aware other thread can change */
 	volatile char handling_pollout;
@@ -1265,7 +1353,8 @@ int
 lws_socks5c_generate_msg(struct lws *wsi, enum socks_msg_type type, ssize_t *msg_len);
 
 int LWS_WARN_UNUSED_RESULT
-__insert_wsi_socket_into_fds(struct lws_context *context, struct lws *wsi);
+__insert_wsi_socket_into_fds(struct lws_context *context, struct lws *wsi,
+			     lws_desc_t *desc);
 
 int LWS_WARN_UNUSED_RESULT
 lws_issue_raw(struct lws *wsi, unsigned char *buf, size_t len);

@@ -166,7 +166,7 @@ lws_ssl_client_bio_create(struct lws *wsi)
 	SSL_set_verify(wsi->tls.ssl, fl, NULL);
 #endif
 
-	SSL_set_fd(wsi->tls.ssl, (int)wsi->desc.u.sockfd);
+	SSL_set_fd(wsi->tls.ssl, (int)lws_wsi_desc(wsi)->u.sockfd);
 
 	if (wsi->sys_tls_client_cert) {
 		lws_system_blob_t *b = lws_system_get_blob(wsi->a.context,

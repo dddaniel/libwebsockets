@@ -78,7 +78,7 @@ typedef enum lws_conmon_dns_disposition {
 	/**< DNS server replied but nothing usable */
 } lws_conmon_dns_disposition_t;
 
-struct lws_conmon {
+typedef struct lws_conmon {
 	lws_sockaddr46				peer46;
 	/**< The peer we actually connected to, if any.  .peer46.sa4.sa_family
 	 * is either 0 if invalid, or the AF_ */
@@ -119,7 +119,7 @@ struct lws_conmon {
 
 	lws_conmon_dns_disposition_t		dns_disposition;
 	/**< indicates general disposition of DNS request */
-};
+} lws_conmon_t;
 
 /**
  * lws_conmon_wsi_take() - create a connection latency object from client wsi

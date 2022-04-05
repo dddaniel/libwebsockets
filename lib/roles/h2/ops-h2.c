@@ -734,7 +734,16 @@ rops_close_kill_connection_h2(struct lws *wsi, enum lws_close_status reason)
 #endif
 			wsi->mux_substream) &&
 	     wsi->mux.parent_wsi) {
+		/*
+		 * If we don't retain the mux parent until later in the close
+		 * flow when we send the CLOSE callback, we can't locate the
+		 * CAOs that are on the nwsi.  The later close flow eradicates
+		 * the mux parent shortly after we return anyway.
+		 */
+		struct lws *mpw = wsi->mux.parent_wsi;
+
 		lws_wsi_mux_sibling_disconnect(wsi);
+		wsi->mux.parent_wsi = mpw;
 		if (wsi->h2.pending_status_body)
 			lws_free_set_NULL(wsi->h2.pending_status_body);
 	}
