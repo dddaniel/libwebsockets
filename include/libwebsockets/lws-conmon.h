@@ -25,7 +25,7 @@
 /** \defgroup conmon Connection Latency information
  * ## Connection Latency information
  *
- * When LWS_WITH_CONMON is enabled at build, collects detailed statistics
+ * When LWS_WITH_CLIENT is enabled at build, collects detailed statistics
  * about the client connection setup latency, available to the connection
  * itself
  */

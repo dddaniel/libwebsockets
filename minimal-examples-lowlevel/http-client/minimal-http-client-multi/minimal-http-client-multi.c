@@ -128,7 +128,6 @@ bail:
 }
 #endif
 
-#if defined(LWS_WITH_CONMON)
 void
 dump_conmon_data(struct lws *wsi)
 {
@@ -160,7 +159,6 @@ dump_conmon_data(struct lws *wsi)
 
 	lws_conmon_release(&cm);
 }
-#endif
 
 static int
 callback_http(struct lws *wsi, enum lws_callback_reasons reason,
@@ -199,9 +197,7 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		client_wsi[idx] = NULL;
 		failed++;
 
-#if defined(LWS_WITH_CONMON)
 		dump_conmon_data(wsi);
-#endif
 
 		goto finished;
 
@@ -245,9 +241,7 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 	case LWS_CALLBACK_CLOSED_CLIENT_HTTP:
 		lwsl_info("%s: closed: %s\n", __func__, lws_wsi_tag(client_wsi[idx]));
 
-#if defined(LWS_WITH_CONMON)
 		dump_conmon_data(wsi);
-#endif
 
 		if (client_wsi[idx]) {
 			/*
@@ -626,10 +620,8 @@ int main(int argc, const char **argv)
 #endif
 	}
 
-#if defined(LWS_WITH_CONMON)
 	if (lws_cmdline_option(argc, argv, "--conmon"))
 		i.ssl_connection |= LCCSCF_CONMON;
-#endif
 
 	/* force h1 even if h2 available */
 	if (lws_cmdline_option(argc, argv, "--h1"))

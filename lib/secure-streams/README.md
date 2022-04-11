@@ -344,9 +344,9 @@ policy is applied.
 
 ### `perf`
 
-If set to true, and lws was built with `LWS_WITH_CONMON`, causes this streamtype
-to receive additional rx payload with the `LWSSS_FLAG_PERF_JSON` flag set on it,
-that is JSON representing the onward connection performance information.
+If set to true, causes this streamtype to receive additional rx payload with the
+`LWSSS_FLAG_PERF_JSON` flag set on it, that is JSON representing the onward
+connection performance information.
 
 These are based on the information captured in the struct defined in
 libwebsockets/lws-conmon.h, represented in JSON

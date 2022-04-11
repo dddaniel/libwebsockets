@@ -601,10 +601,8 @@ lws_client_interpret_server_handshake(struct lws *wsi)
 
 	// lws_free_set_NULL(wsi->stash);
 
-#if defined(LWS_WITH_CONMON)
 	wsi->conmon.ciu_txn_resp = (lws_conmon_interval_us_t)
 					(lws_now_usecs() - wsi->conmon_datum);
-#endif
 
 	ah = wsi->http.ah;
 	if (!wsi->do_ws) {
@@ -706,7 +704,6 @@ lws_client_interpret_server_handshake(struct lws *wsi)
 			goto bail3;
 		}
 
-#if defined(LWS_WITH_CONMON)
 		if (wsi->conmon.pcol == LWSCONMON_PCOL_NONE) {
 			wsi->conmon.pcol = LWSCONMON_PCOL_HTTP;
 			wsi->conmon.protocol_specific.http.response = n;
@@ -724,7 +721,6 @@ lws_client_interpret_server_handshake(struct lws *wsi)
 			if (h)
 				lws_conmon_ss_json(h);
 		}
-#endif
 #endif
 
 		/* let's let the user code know, if he cares */
@@ -1288,9 +1284,7 @@ lws_generate_client_handshake(struct lws *wsi, char *pkt)
 		lws_callback_on_writable(wsi);
 
 	lws_metrics_caliper_bind(wsi->cal_conn, wsi->a.context->mt_http_txn);
-#if defined(LWS_WITH_CONMON)
 	wsi->conmon_datum = lws_now_usecs();
-#endif
 
 	// puts(pkt);
 

@@ -699,9 +699,7 @@ lws_fx_string(const lws_fx_t *a, char *buf, size_t size);
 #include <libwebsockets/lws-context-vhost.h>
 
 #if defined(LWS_WITH_NETWORK)
-#if defined(LWS_WITH_CONMON)
 #include <libwebsockets/lws-conmon.h>
-#endif
 
 #if defined(LWS_ROLE_MQTT)
 #include <libwebsockets/lws-mqtt.h>

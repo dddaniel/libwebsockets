@@ -296,7 +296,6 @@ lws_ssproxy_txp_proxy_can_write(lws_transport_priv_t priv
 		 * priority 2
 		 */
 
-#if defined(LWS_WITH_CONMON)
 		if (conn->ss->conmon_json) {
 			unsigned int xlen = conn->ss->conmon_len;
 
@@ -314,7 +313,7 @@ lws_ssproxy_txp_proxy_can_write(lws_transport_priv_t priv
 			pay = 0;
 			goto do_write_nz;
 		}
-#endif
+
 		/*
 		 * if no fresh rx metadata, just pass through incoming
 		 * dsh

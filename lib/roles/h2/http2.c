@@ -1515,7 +1515,7 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 			h2n->swsi->client_h2_alpn = 1;
 #if defined(LWS_WITH_CLIENT)
 			h2n->swsi->flags = wsi->flags;
-#if defined(LWS_WITH_CONMON)
+
 			/* sid1 needs to represent the connection experience
 			 * ... we take over responsibility for the DNS list
 			 * copy as well
@@ -1524,7 +1524,6 @@ lws_h2_parse_end_of_frame(struct lws *wsi)
 			h2n->swsi->conmon_datum = wsi->conmon_datum;
 			h2n->swsi->sa46_peer = wsi->sa46_peer;
 			wsi->conmon.dns_results_copy = NULL;
-#endif
 #endif /* CLIENT */
 
 #if defined(LWS_WITH_SECURE_STREAMS)

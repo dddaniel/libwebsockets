@@ -455,9 +455,7 @@ secstream_h1(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 
 		assert(h->policy);
 
-#if defined(LWS_WITH_CONMON)
 		lws_conmon_ss_json(h);
-#endif
 
 		lws_metrics_caliper_report_hist(h->cal_txn, wsi);
 		lwsl_info("%s: %s CLIENT_CONNECTION_ERROR: %s\n", __func__,
@@ -511,7 +509,6 @@ secstream_h1(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 
 		lws_ss_assert_extant(wsi->a.context, wsi->tsi, h);
 
-#if defined(LWS_WITH_CONMON)
 		if (wsi->conmon.pcol == LWSCONMON_PCOL_NONE) {
 			wsi->conmon.pcol = LWSCONMON_PCOL_HTTP;
 			wsi->conmon.protocol_specific.http.response =
@@ -519,7 +516,6 @@ secstream_h1(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		}
 
 		lws_conmon_ss_json(h);
-#endif
 
 		lws_metrics_caliper_report_hist(h->cal_txn, wsi);
 		//lwsl_notice("%s: %s LWS_CALLBACK_CLOSED_CLIENT_HTTP\n",
@@ -564,7 +560,6 @@ secstream_h1(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		h->wsi = wsi; /* since we accept the wsi is bound to the SS,
 			       * ensure the SS feels the same way about the wsi */
 
-#if defined(LWS_WITH_CONMON)
 		if (wsi->conmon.pcol == LWSCONMON_PCOL_NONE) {
 			wsi->conmon.pcol = LWSCONMON_PCOL_HTTP;
 			wsi->conmon.protocol_specific.http.response =
@@ -572,7 +567,6 @@ secstream_h1(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		}
 
 		lws_conmon_ss_json(h);
-#endif
 
 		status = (int)lws_http_client_http_response(wsi);
 		lwsl_info("%s: LWS_CALLBACK_ESTABLISHED_CLIENT_HTTP: %d\n", __func__, status);

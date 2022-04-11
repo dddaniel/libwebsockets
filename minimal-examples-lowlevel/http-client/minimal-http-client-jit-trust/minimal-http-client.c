@@ -39,7 +39,6 @@ static const lws_retry_bo_t retry = {
 	.secs_since_valid_hangup = 10,
 };
 
-#if defined(LWS_WITH_CONMON)
 void
 dump_conmon_data(struct lws *wsi)
 {
@@ -73,7 +72,6 @@ dump_conmon_data(struct lws *wsi)
 
 	lws_conmon_release(&cm);
 }
-#endif
 
 struct args {
 	int argc;
@@ -152,12 +150,10 @@ try_connect(struct lws_context *cx)
 				i.manual_initial_tx_credit);
 	}
 
-#if defined(LWS_WITH_CONMON)
 	if (lws_cmdline_option(a->argc, a->argv, "--conmon")) {
 		i.ssl_connection |= LCCSCF_CONMON;
 		conmon = 1;
 	}
-#endif
 
 	/* the default validity check is 5m / 5m10s... -v = 3s / 10s */
 
@@ -217,10 +213,9 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		bad = 3; /* connection failed before we could make connection */
 		lws_cancel_service(lws_get_context(wsi));
 
-#if defined(LWS_WITH_CONMON)
 	if (conmon)
 		dump_conmon_data(wsi);
-#endif
+
 		break;
 
 	case LWS_CALLBACK_ESTABLISHED_CLIENT_HTTP:
@@ -323,10 +318,10 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		interrupted = 1;
 		bad = 0; // status != 200;
 		lws_cancel_service(lws_get_context(wsi)); /* abort poll wait */
-#if defined(LWS_WITH_CONMON)
+
 		if (conmon)
 			dump_conmon_data(wsi);
-#endif
+
 		break;
 
 	default:

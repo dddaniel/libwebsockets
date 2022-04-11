@@ -1,8 +1,8 @@
 ## `lws_conmon` apis
 
-`LWS_WITH_CONMON` build option enables `lws_conmon` apis for user code... these add
-some staticistic and information to client connections that can use useful for devices
-to introspect how the connection to their servers is actually performing.
+`lws_conmon` apis for user code... add some staticistic and other information to
+client connections that can use useful for devices to introspect how the
+connection to their servers is actually performing.
 
 The public apis can be found in `libwebsockets/lws-conmon.h`.
 
@@ -30,7 +30,6 @@ dependency on wsi lifetime either).  The DNS list copy in the struct must be
 released at some point by calling `lws_conmon_release()`, but that
 can be at any time afterwards.
 
-The lws-minimal-http-client example shows how user code can use the apis, build
-lws with the `LWS_WITH_CONMON` cmake option and run with `--conmon` to get a
-dump of the collected information.
+The lws-minimal-http-client example shows how user code can use the apis, run it
+with `--conmon` to get a dump of the collected information.
 

@@ -179,10 +179,8 @@ lws_client_connect_3_connect(struct lws *wsi, const char *ads,
 	if (result) {
 		lws_sul_cancel(&wsi->sul_connect_timeout);
 
-#if defined(LWS_WITH_CONMON)
 		/* append a copy from before the sorting */
 		lws_conmon_append_copy_new_dns_results(wsi, result);
-#endif
 
 		lws_sort_dns(wsi, result);
 #if defined(LWS_WITH_SYS_ASYNC_DNS)
@@ -527,10 +525,8 @@ ads_known:
 		m = connect(wsi->desc.u.sockfd, (const struct sockaddr *)psa,
 			    (socklen_t)n);
 
-#if defined(LWS_WITH_CONMON)
 	wsi->conmon_datum = lws_now_usecs();
 	wsi->conmon.ciu_sockconn = 0;
-#endif
 
 	if (m == -1) {
 		/*
@@ -638,10 +634,8 @@ conn_good:
 	 * The connection has happened
 	 */
 
-#if defined(LWS_WITH_CONMON)
 	wsi->conmon.ciu_sockconn = (lws_conmon_interval_us_t)
 					(lws_now_usecs() - wsi->conmon_datum);
-#endif
 
 #if !defined(LWS_PLAT_OPTEE)
 	{

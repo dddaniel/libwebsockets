@@ -28,7 +28,6 @@ static const lws_retry_bo_t retry = {
 	.secs_since_valid_hangup = 10,
 };
 
-#if defined(LWS_WITH_CONMON)
 void
 dump_conmon_data(struct lws *wsi)
 {
@@ -60,7 +59,6 @@ dump_conmon_data(struct lws *wsi)
 
 	lws_conmon_release(&cm);
 }
-#endif
 
 static const char *ua = "Mozilla/5.0 (X11; Linux x86_64) "
 			"AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -81,10 +79,9 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		bad = 3; /* connection failed before we could make connection */
 		lws_cancel_service(lws_get_context(wsi));
 
-#if defined(LWS_WITH_CONMON)
-	if (conmon)
-		dump_conmon_data(wsi);
-#endif
+		if (conmon)
+			dump_conmon_data(wsi);
+
 		break;
 
 	case LWS_CALLBACK_ESTABLISHED_CLIENT_HTTP:
@@ -186,10 +183,10 @@ callback_http(struct lws *wsi, enum lws_callback_reasons reason,
 		interrupted = 1;
 		bad = status != 200;
 		lws_cancel_service(lws_get_context(wsi)); /* abort poll wait */
-#if defined(LWS_WITH_CONMON)
+
 		if (conmon)
 			dump_conmon_data(wsi);
-#endif
+
 		break;
 
 	default:
@@ -299,12 +296,10 @@ system_notify_cb(lws_state_manager_t *mgr, lws_state_notify_link_t *link,
 				i.manual_initial_tx_credit);
 	}
 
-#if defined(LWS_WITH_CONMON)
 	if (lws_cmdline_option(a->argc, a->argv, "--conmon")) {
 		i.ssl_connection |= LCCSCF_CONMON;
 		conmon = 1;
 	}
-#endif
 
 	/* the default validity check is 5m / 5m10s... -v = 3s / 10s */
 

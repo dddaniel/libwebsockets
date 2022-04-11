@@ -187,8 +187,6 @@ const uint32_t ss_state_txn_validity[] = {
 					  (1 << LWSSSCS_DESTROYING),
 };
 
-#if defined(LWS_WITH_CONMON)
-
 /*
  * Convert any conmon data to JSON and attach to the ss handle.
  */
@@ -294,7 +292,6 @@ lws_conmon_ss_json(lws_ss_handle_t *h)
 
 	return ret;
 }
-#endif
 
 int
 lws_ss_check_next_state(lws_lifecycle_t *lc, uint8_t *prevstate,
@@ -1537,10 +1534,8 @@ lws_ss_destroy(lws_ss_handle_t **ppss)
 	}
 	h->destroying = 1;
 
-#if defined(LWS_WITH_CONMON)
 	if (h->conmon_json)
 		lws_free_set_NULL(h->conmon_json);
-#endif
 
 	if (h->wsi) {
 

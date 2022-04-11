@@ -726,10 +726,8 @@ struct lws {
 	struct client_info_stash	*stash;
 	char				*cli_hostname_copy;
 
-#if defined(LWS_WITH_CONMON)
 	struct lws_conmon		conmon;
 	lws_usec_t			conmon_datum;
-#endif
 #endif /* WITH_CLIENT */
 	void				*user_space;
 	void				*opaque_parent_data;

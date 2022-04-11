@@ -88,9 +88,8 @@ typedef struct lws_ss_handle {
 	const lws_ss_policy_t	*rideshare;
 	struct lws_ss_handle	*h_in_svc;
 
-#if defined(LWS_WITH_CONMON)
 	char			*conmon_json;
-#endif
+
 #if defined(LWS_WITH_SERVER)
 	lws_dll2_t		sink_bind; /* if bound to / owned by a sink */
 	lws_sorted_usec_list_t	sul_txreq; /* pending tx req to peer */
@@ -186,9 +185,9 @@ typedef struct lws_ss_handle {
 #endif
 
 	uint16_t		retry;	  /**< retry / backoff tracking */
-#if defined(LWS_WITH_CONMON)
+
 	uint16_t		conmon_len;
-#endif
+
 	int16_t			temp16;
 
 	uint8_t			tsi;	  /**< service thread idx, usually 0 */
